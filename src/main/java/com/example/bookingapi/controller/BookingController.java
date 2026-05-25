@@ -2,7 +2,6 @@ package com.example.bookingapi.controller;
 
 import com.example.bookingapi.model.Booking;
 import com.example.bookingapi.payload.request.BookingRequest;
-import com.example.bookingapi.payload.response.ApiResponse;
 import com.example.bookingapi.payload.response.PagedResponse;
 import com.example.bookingapi.security.CurrentUser;
 import com.example.bookingapi.security.UserPrincipal;
@@ -17,6 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,12 +35,12 @@ public class BookingController {
     @PostMapping
     @Operation(summary = "Create booking", description = "Create a new booking for the current authenticated user.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Booking created successfully.",
+            @ApiResponse(responseCode = "201", description = "Booking created successfully.",
                     content = @Content(schema = @Schema(implementation = Booking.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
+            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
+            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
+            @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
+            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
     public ResponseEntity<Booking> createBooking(@Valid @RequestBody BookingRequest bookingRequest,
                                                   @Parameter(hidden = true)
@@ -52,11 +52,11 @@ public class BookingController {
     @GetMapping("/me")
     @Operation(summary = "Get my bookings", description = "Return paginated bookings of the current authenticated user.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Current user's bookings returned successfully.",
+            @ApiResponse(responseCode = "200", description = "Current user's bookings returned successfully.",
                     content = @Content(schema = @Schema(implementation = PagedResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
+            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
+            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
+            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
     public ResponseEntity<PagedResponse<Booking>> getMyBookings(
             @Parameter(hidden = true)
@@ -71,12 +71,12 @@ public class BookingController {
     @GetMapping("/{id}")
     @Operation(summary = "Get booking by id", description = "Return a booking that belongs to the current authenticated user.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Booking returned successfully.",
+            @ApiResponse(responseCode = "200", description = "Booking returned successfully.",
                     content = @Content(schema = @Schema(implementation = Booking.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
+            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
+            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
+            @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
+            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
     public ResponseEntity<Booking> getBooking(@PathVariable UUID id,
                                                @Parameter(hidden = true)
@@ -87,14 +87,14 @@ public class BookingController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Cancel booking", description = "Cancel a booking that belongs to the current authenticated user.")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Booking cancelled successfully.",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
+            @ApiResponse(responseCode = "200", description = "Booking cancelled successfully.",
+                    content = @Content(schema = @Schema(implementation = com.example.bookingapi.payload.response.ApiResponse.class))),
+            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
+            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
+            @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
+            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
     })
-    public ResponseEntity<ApiResponse> cancelBooking(@PathVariable UUID id,
+    public ResponseEntity<com.example.bookingapi.payload.response.ApiResponse> cancelBooking(@PathVariable UUID id,
                                                       @Parameter(hidden = true)
                                                       @CurrentUser UserPrincipal currentUser) {
         return ResponseEntity.ok(bookingService.cancelBooking(id, currentUser));
