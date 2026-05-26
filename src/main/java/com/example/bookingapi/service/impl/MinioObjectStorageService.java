@@ -3,6 +3,7 @@ package com.example.bookingapi.service.impl;
 import com.example.bookingapi.config.MinioProperties;
 import com.example.bookingapi.exception.AppException;
 import com.example.bookingapi.exception.BadRequestException;
+import com.example.bookingapi.model.enums.AllowedUploadFileType;
 import com.example.bookingapi.payload.response.UploadFileResponse;
 import com.example.bookingapi.service.ObjectStorageService;
 import io.minio.BucketExistsArgs;
@@ -23,8 +24,6 @@ import java.util.UUID;
 @Service
 public class MinioObjectStorageService implements ObjectStorageService {
 
-    private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
-
     @Autowired
     private MinioClient minioClient;
 
@@ -37,11 +36,15 @@ public class MinioObjectStorageService implements ObjectStorageService {
             throw new BadRequestException("File must not be empty");
         }
 
+        String contentType = file.getContentType();
+        if (!AllowedUploadFileType.isAllowed(contentType)) {
+            throw new BadRequestException("Unsupported file type: " + contentType);
+        }
+
         String normalizedFolder = normalizeFolder(folder);
         String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
         String safeFilename = sanitizeFilename(originalFilename);
         String objectKey = buildObjectKey(normalizedFolder, safeFilename);
-        String contentType = file.getContentType() != null ? file.getContentType() : DEFAULT_CONTENT_TYPE;
 
         try {
             ensureBucketReady();

@@ -1,7 +1,8 @@
 package com.example.bookingapi.controller;
 
-import com.example.bookingapi.model.Booking;
+import com.example.bookingapi.annotation.CommonApiResponses;
 import com.example.bookingapi.payload.request.BookingRequest;
+import com.example.bookingapi.payload.response.BookingResponse;
 import com.example.bookingapi.payload.response.PagedResponse;
 import com.example.bookingapi.security.CurrentUser;
 import com.example.bookingapi.security.UserPrincipal;
@@ -17,7 +18,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -34,15 +34,10 @@ public class BookingController {
 
     @PostMapping
     @Operation(summary = "Create booking", description = "Create a new booking for the current authenticated user.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Booking created successfully.",
-                    content = @Content(schema = @Schema(implementation = Booking.class))),
-            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-    })
-    public ResponseEntity<Booking> createBooking(@Valid @RequestBody BookingRequest bookingRequest,
+    @ApiResponse(responseCode = "201", description = "Booking created successfully.",
+            content = @Content(schema = @Schema(implementation = BookingResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<BookingResponse> createBooking(@Valid @RequestBody BookingRequest bookingRequest,
                                                   @Parameter(hidden = true)
                                                   @CurrentUser UserPrincipal currentUser) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -51,14 +46,10 @@ public class BookingController {
 
     @GetMapping("/me")
     @Operation(summary = "Get my bookings", description = "Return paginated bookings of the current authenticated user.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Current user's bookings returned successfully.",
-                    content = @Content(schema = @Schema(implementation = PagedResponse.class))),
-            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-    })
-    public ResponseEntity<PagedResponse<Booking>> getMyBookings(
+    @ApiResponse(responseCode = "200", description = "Current user's bookings returned successfully.",
+            content = @Content(schema = @Schema(implementation = PagedResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<PagedResponse<BookingResponse>> getMyBookings(
             @Parameter(hidden = true)
             @CurrentUser UserPrincipal currentUser,
             @Parameter(description = "Page index starting from 0")
@@ -70,15 +61,10 @@ public class BookingController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get booking by id", description = "Return a booking that belongs to the current authenticated user.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Booking returned successfully.",
-                    content = @Content(schema = @Schema(implementation = Booking.class))),
-            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-    })
-    public ResponseEntity<Booking> getBooking(@PathVariable UUID id,
+    @ApiResponse(responseCode = "200", description = "Booking returned successfully.",
+            content = @Content(schema = @Schema(implementation = BookingResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<BookingResponse> getBooking(@PathVariable UUID id,
                                                @Parameter(hidden = true)
                                                @CurrentUser UserPrincipal currentUser) {
         return ResponseEntity.ok(bookingService.getBooking(id, currentUser));
@@ -86,14 +72,9 @@ public class BookingController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Cancel booking", description = "Cancel a booking that belongs to the current authenticated user.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Booking cancelled successfully.",
-                    content = @Content(schema = @Schema(implementation = com.example.bookingapi.payload.response.ApiResponse.class))),
-            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
-            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-    })
+    @ApiResponse(responseCode = "200", description = "Booking cancelled successfully.",
+            content = @Content(schema = @Schema(implementation = com.example.bookingapi.payload.response.ApiResponse.class)))
+    @CommonApiResponses
     public ResponseEntity<com.example.bookingapi.payload.response.ApiResponse> cancelBooking(@PathVariable UUID id,
                                                       @Parameter(hidden = true)
                                                       @CurrentUser UserPrincipal currentUser) {

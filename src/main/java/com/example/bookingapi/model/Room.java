@@ -3,6 +3,7 @@ package com.example.bookingapi.model;
 import com.example.bookingapi.model.audit.UserDateAudit;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -35,6 +36,8 @@ public class Room extends UserDateAudit {
     @Column(name = "room_type")
     private String roomType;
 
+    @Column(name = "capacity")
+    @Min(1)
     private Integer capacity;
 
     @Column(name = "price_per_night", precision = 10, scale = 2)

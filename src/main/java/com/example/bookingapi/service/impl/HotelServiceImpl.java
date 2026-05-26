@@ -45,9 +45,11 @@ public class HotelServiceImpl implements HotelService {
     private ObjectStorageService objectStorageService;
 
     @Override
-    public PagedResponse<HotelResponse> getAllHotels(int page, int size) {
+    public PagedResponse<HotelResponse> getAllHotels(int page, int size, String keyword) {
         Pageable pageable = PageRequest.of(page, size, Sort.Direction.DESC, "createdAt");
-        Page<Hotel> hotels = hotelRepository.findAll(pageable);
+        Page<Hotel> hotels = keyword == null || keyword.isBlank()
+                ? hotelRepository.findAll(pageable)
+                : hotelRepository.searchByNameOrLocation(keyword.trim(), pageable);
         List<HotelResponse> content = hotels.getContent().stream()
                 .map(this::toResponse)
                 .toList();

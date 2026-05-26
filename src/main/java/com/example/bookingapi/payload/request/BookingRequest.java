@@ -1,6 +1,7 @@
 package com.example.bookingapi.payload.request;
 
 import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +17,7 @@ public class BookingRequest {
     private UUID roomId;
 
     @NotNull
+    @FutureOrPresent
     private LocalDate checkInDate;
 
     @NotNull

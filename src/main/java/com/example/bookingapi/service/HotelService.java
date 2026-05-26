@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
 public interface HotelService {
-    PagedResponse<HotelResponse> getAllHotels(int page, int size);
+    PagedResponse<HotelResponse> getAllHotels(int page, int size, String keyword);
     HotelResponse getHotel(UUID id);
     HotelResponse addHotel(HotelRequest hotelRequest);
     HotelResponse updateHotel(UUID id, HotelRequest hotelRequest);

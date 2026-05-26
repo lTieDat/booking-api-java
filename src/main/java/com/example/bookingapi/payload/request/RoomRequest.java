@@ -1,8 +1,6 @@
 package com.example.bookingapi.payload.request;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,8 +17,11 @@ public class RoomRequest {
     @Size(max = 50)
     private String roomType;
 
+    @Positive
+    @Min(1)
     private Integer capacity;
 
     @NotNull
+    @Positive
     private BigDecimal pricePerNight;
 }

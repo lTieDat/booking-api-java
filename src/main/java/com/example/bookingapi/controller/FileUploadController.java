@@ -1,12 +1,12 @@
 package com.example.bookingapi.controller;
 
+import com.example.bookingapi.annotation.CommonApiResponses;
 import com.example.bookingapi.payload.response.UploadFileResponse;
 import com.example.bookingapi.service.ObjectStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,14 +28,10 @@ public class FileUploadController {
     @PreAuthorize("hasRole('ADMIN')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Upload file", description = "Upload a file to object storage and return its metadata.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "File uploaded successfully.",
-                    content = @Content(schema = @Schema(implementation = UploadFileResponse.class))),
-            @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
-            @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
-            @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden"),
-            @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalServerError")
-    })
+    @ApiResponse(responseCode = "200", description = "File uploaded successfully.",
+            content = @Content(schema = @Schema(implementation = UploadFileResponse.class)))
+    @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
+    @CommonApiResponses
     public ResponseEntity<UploadFileResponse> upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam(defaultValue = "hotel-images") String folder) {
