@@ -140,7 +140,7 @@ bookings
 
 ### 4.1 `User`
 
-File: `src/main/java/com/example/bookingapi/model/User.java`
+File: `src/main/java/com/example/bookingapi/features/user/model/User.java`
 
 Map với bảng `users`.
 
@@ -203,7 +203,7 @@ Khi signup:
 
 ### 4.2 `Role`
 
-File: `src/main/java/com/example/bookingapi/model/Role.java`
+File: `src/main/java/com/example/bookingapi/features/auth/model/Role.java`
 
 Map với bảng `roles`.
 
@@ -212,7 +212,7 @@ Map với bảng `roles`.
 
 ### 4.3 `Hotel`
 
-File: `src/main/java/com/example/bookingapi/model/Hotel.java`
+File: `src/main/java/com/example/bookingapi/features/hotel/model/Hotel.java`
 
 Map với bảng `hotels`.
 
@@ -234,7 +234,7 @@ Quan hệ:
 
 ### 4.4 `Room`
 
-File: `src/main/java/com/example/bookingapi/model/Room.java`
+File: `src/main/java/com/example/bookingapi/features/room/model/Room.java`
 
 Map với bảng `rooms`.
 
@@ -251,7 +251,7 @@ Mỗi room phải thuộc về đúng một hotel.
 
 ### 4.5 `Booking`
 
-File: `src/main/java/com/example/bookingapi/model/Booking.java`
+File: `src/main/java/com/example/bookingapi/features/booking/model/Booking.java`
 
 Map với bảng `bookings`.
 
@@ -275,7 +275,7 @@ Booking cũng kế thừa `UserDateAudit`, nên lưu được metadata tạo/c�
 
 ### 5.1 `DateAudit`
 
-File: `src/main/java/com/example/bookingapi/model/audit/DateAudit.java`
+File: `src/main/java/com/example/bookingapi/common/audit/DateAudit.java`
 
 Class này là `@MappedSuperclass`, chứa:
 
@@ -289,7 +289,7 @@ Class này là `@MappedSuperclass`, chứa:
 
 ### 5.2 `UserDateAudit`
 
-File: `src/main/java/com/example/bookingapi/model/audit/UserDateAudit.java`
+File: `src/main/java/com/example/bookingapi/common/audit/UserDateAudit.java`
 
 Kế thừa `DateAudit` và thêm:
 
@@ -303,7 +303,7 @@ Kế thừa `DateAudit` và thêm:
 
 ### 5.3 `AuditingConfig`
 
-File: `src/main/java/com/example/bookingapi/config/AuditingConfig.java`
+File: `src/main/java/com/example/bookingapi/common/config/AuditingConfig.java`
 
 `AuditorAware<Long>` lấy `userId` từ `SecurityContextHolder`.
 

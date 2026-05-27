@@ -129,7 +129,7 @@ Sau khi authorize:
 
 ### 6.1 `AuthController`
 
-File: `src/main/java/com/example/bookingapi/controller/AuthController.java`
+File: `src/main/java/com/example/bookingapi/features/auth/controller/AuthController.java`
 
 Nên document:
 
@@ -154,7 +154,7 @@ Nên document:
 
 ### 6.2 `HotelController`
 
-File: `src/main/java/com/example/bookingapi/controller/HotelController.java`
+File: `src/main/java/com/example/bookingapi/features/hotel/controller/HotelController.java`
 
 Endpoint hiện tại:
 
@@ -173,7 +173,7 @@ Endpoint hiện tại:
 
 ### 6.3 `RoomController`
 
-File: `src/main/java/com/example/bookingapi/controller/RoomController.java`
+File: `src/main/java/com/example/bookingapi/features/room/controller/RoomController.java`
 
 Endpoint:
 
@@ -192,7 +192,7 @@ Nên ghi rõ:
 
 ### 6.4 `BookingController`
 
-File: `src/main/java/com/example/bookingapi/controller/BookingController.java`
+File: `src/main/java/com/example/bookingapi/features/booking/controller/BookingController.java`
 
 Endpoint:
 
@@ -211,7 +211,7 @@ Nên thể hiện:
 
 ### 6.5 `UserController`
 
-File: `src/main/java/com/example/bookingapi/controller/UserController.java`
+File: `src/main/java/com/example/bookingapi/features/user/controller/UserController.java`
 
 Endpoint:
 
@@ -244,11 +244,13 @@ Nên mô tả DTO theo field thật trong code:
 
 Nên hiển thị rõ:
 
-- `ApiResponse`
+- `ApiMessageResponse`
 - `JwtAuthResponse`
 - `PagedResponse<T>`
 - `UserSummary`
 - `UserProfile`
+
+Naming note: không đặt response DTO của app là `ApiResponse`, vì tên này trùng với Swagger annotation `io.swagger.v3.oas.annotations.responses.ApiResponse`. Dùng `ApiMessageResponse` cho payload `{ success, message }` để controller có thể import DTO bình thường và vẫn dùng `@ApiResponse` của Swagger mà không cần fully-qualified name.
 
 ### Lỗi nên mô tả
 
@@ -340,4 +342,3 @@ BookingAPI hiện chưa tích hợp Swagger/OpenAPI, nhưng việc thêm Swagger
 - cần document request/response cho frontend và QA
 
 Tài liệu này là hướng dẫn triển khai để sau này có thể thêm Swagger vào project một cách nhất quán với kiến trúc hiện tại.
-

@@ -1,6 +1,6 @@
 # Booking API
 
-REST API quản lý đặt phòng khách sạn, xây dựng theo **classic N-tier layered architecture** — dễ tiếp cận từ đầu với Spring Boot.
+REST API quản lý đặt phòng khách sạn, xây dựng theo **feature-based layered architecture**: mỗi business feature tự chứa controller, DTO, model, repository, service; phần dùng chung nằm trong `common`.
 
 Tham khảo cấu trúc: [osopromadze/Spring-Boot-Blog-REST-API](https://github.com/osopromadze/Spring-Boot-Blog-REST-API)
 
@@ -85,48 +85,38 @@ sequenceDiagram
 ```text
 com.example.bookingapi
 ├── BookingApiApplication.java
-├── config/
-│   ├── AuditingConfig.java       # @EnableJpaAuditing + AuditorAware
-│   ├── SecurityConfig.java       # JWT stateless security
-│   └── WebMvcConfig.java         # CORS
-├── controller/
-│   ├── AuthController.java       # POST /api/auth/signin, /signup
-│   ├── HotelController.java      # CRUD /api/hotels
-│   ├── RoomController.java       # CRUD /api/hotels/{id}/rooms
-│   ├── BookingController.java    # CRUD /api/bookings
-│   └── UserController.java       # GET /api/users/me, /{username}
-├── exception/
-│   ├── AppException.java
-│   ├── BadRequestException.java
-│   ├── ResourceNotFoundException.java
-│   ├── UnauthorizedException.java
-│   └── GlobalExceptionHandler.java   # @RestControllerAdvice
-├── model/
-│   ├── audit/
-│   │   ├── DateAudit.java            # @MappedSuperclass: createdAt, updatedAt
-│   │   └── UserDateAudit.java        # extends DateAudit + createdBy, updatedBy
-│   ├── enums/
-│   │   └── RoleName.java             # ROLE_USER, ROLE_ADMIN
-│   ├── User.java
-│   ├── Role.java
-│   ├── Hotel.java
-│   ├── Room.java
-│   └── Booking.java
-├── payload/
-│   ├── request/    LoginRequest, SignUpRequest, HotelRequest, RoomRequest, BookingRequest
-│   └── response/   ApiResponse, JwtAuthResponse, PagedResponse, UserProfile, UserSummary
-├── repository/     UserRepository, RoleRepository, HotelRepository, RoomRepository, BookingRepository
-├── security/
-│   ├── CurrentUser.java              # custom @AuthenticationPrincipal annotation
-│   ├── UserPrincipal.java            # implements UserDetails
-│   ├── JwtTokenProvider.java
-│   ├── JwtAuthenticationFilter.java  # OncePerRequestFilter
-│   ├── JwtAuthenticationEntryPoint.java
-│   └── CustomUserDetailsService.java # interface + impl
-├── service/        5 interfaces + impls trong service/impl/
-└── utils/
-    └── AppConstants.java
+├── common/
+│   ├── audit/                    # DateAudit, UserDateAudit base entity classes
+│   ├── config/                   # AuditingConfig, SecurityConfig, WebMvcConfig, OpenApiConfig
+│   ├── exception/                # AppException, ResourceNotFoundException, GlobalExceptionHandler...
+│   ├── openapi/                  # common Swagger/OpenAPI annotations
+│   ├── response/                 # ApiErrorResponse, ApiMessageResponse, PagedResponse
+│   ├── security/                 # JWT filter/provider, CurrentUser, UserPrincipal
+│   ├── storage/                  # MinIO/ObjectStorage abstraction
+│   ├── upload/                   # upload endpoint + upload DTO/enums
+│   └── util/                     # AppConstants
+└── features/
+    ├── auth/                      # auth controller, auth DTO, Role/Manager/OTP, auth services
+    ├── user/                      # user profile/read models
+    ├── hotel/                     # hotel, location, hotel images
+    ├── room/                      # room type, room, amenity
+    └── booking/                   # booking, booked room, guest, discount, cancellation policy
 ```
+
+Trong mỗi feature, layout mặc định là:
+
+```text
+controller/
+dto/request/
+dto/response/
+model/
+model/enums/
+repository/
+service/
+service/impl/
+```
+
+Rule hiện tại: nếu logic chỉ phục vụ một feature thì để trong feature đó; nếu dùng chéo nhiều feature hoặc là cross-cutting concern như security, exception, audit, upload, response wrapper thì để trong `common`.
 
 ## Database
 

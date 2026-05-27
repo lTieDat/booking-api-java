@@ -74,7 +74,7 @@ sequenceDiagram
 
 ### 3.1 `SecurityConfig`
 
-File: `src/main/java/com/example/bookingapi/config/SecurityConfig.java`
+File: `src/main/java/com/example/bookingapi/common/config/SecurityConfig.java`
 
 Vai trò:
 
@@ -88,7 +88,7 @@ Vai trò:
 
 ### 3.2 `JwtTokenProvider`
 
-File: `src/main/java/com/example/bookingapi/security/JwtTokenProvider.java`
+File: `src/main/java/com/example/bookingapi/common/security/JwtTokenProvider.java`
 
 Vai trò:
 
@@ -118,7 +118,7 @@ Nghĩa là:
 
 ### 3.3 `JwtAuthenticationFilter`
 
-File: `src/main/java/com/example/bookingapi/security/JwtAuthenticationFilter.java`
+File: `src/main/java/com/example/bookingapi/common/security/JwtAuthenticationFilter.java`
 
 Vai trò:
 
@@ -130,7 +130,7 @@ Vai trò:
 
 ### 3.4 `JwtAuthenticationEntryPoint`
 
-File: `src/main/java/com/example/bookingapi/security/JwtAuthenticationEntryPoint.java`
+File: `src/main/java/com/example/bookingapi/common/security/JwtAuthenticationEntryPoint.java`
 
 Vai trò:
 
@@ -138,7 +138,7 @@ Vai trò:
 
 ### 3.5 `CustomUserDetailsServiceImpl`
 
-File: `src/main/java/com/example/bookingapi/service/impl/CustomUserDetailsServiceImpl.java`
+File: `src/main/java/com/example/bookingapi/features/auth/service/impl/CustomUserDetailsServiceImpl.java`
 
 Vai trò:
 

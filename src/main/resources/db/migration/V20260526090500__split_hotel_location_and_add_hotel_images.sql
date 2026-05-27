@@ -66,6 +66,25 @@ ALTER TABLE hotels
 
 CREATE INDEX idx_hotels_location_id ON hotels (location_id);
 
+CREATE TABLE guests (
+    id               UUID PRIMARY KEY,
+    first_name       VARCHAR(40) NOT NULL,
+    last_name        VARCHAR(40) NOT NULL,
+    middle_name      VARCHAR(40),
+    identify_card_no VARCHAR(20) NOT NULL,
+    phone_number     VARCHAR(20) NOT NULL,
+    location_id      UUID,
+    created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_guests_identify_card_no UNIQUE (identify_card_no),
+    CONSTRAINT uk_guests_location_id UNIQUE (location_id),
+    CONSTRAINT fk_guests_location FOREIGN KEY (location_id) REFERENCES locations (id)
+);
+
+ALTER TABLE bookings
+    ADD CONSTRAINT fk_bookings_guest
+        FOREIGN KEY (guest_id) REFERENCES guests (id);
+
 ALTER TABLE hotels
     DROP COLUMN address;
 

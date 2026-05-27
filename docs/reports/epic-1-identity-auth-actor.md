@@ -49,34 +49,34 @@ Hoàn thiện lớp định danh và xác thực cho BookingAPI để các modul
 ## 3. File chính đã thay đổi
 
 ### Model / enum
-- `src/main/java/com/example/bookingapi/model/Manager.java`
-- `src/main/java/com/example/bookingapi/model/OTPToken.java`
-- `src/main/java/com/example/bookingapi/model/User.java`
-- `src/main/java/com/example/bookingapi/model/enums/ActorType.java`
-- `src/main/java/com/example/bookingapi/model/enums/OtpPurpose.java`
+- `src/main/java/com/example/bookingapi/features/auth/model/Manager.java`
+- `src/main/java/com/example/bookingapi/features/auth/model/OTPToken.java`
+- `src/main/java/com/example/bookingapi/features/user/model/User.java`
+- `src/main/java/com/example/bookingapi/features/auth/model/enums/ActorType.java`
+- `src/main/java/com/example/bookingapi/features/auth/model/enums/OtpPurpose.java`
 
 ### Repository
-- `src/main/java/com/example/bookingapi/repository/ManagerRepository.java`
-- `src/main/java/com/example/bookingapi/repository/OTPTokenRepository.java`
+- `src/main/java/com/example/bookingapi/features/auth/repository/ManagerRepository.java`
+- `src/main/java/com/example/bookingapi/features/auth/repository/OTPTokenRepository.java`
 
 ### Security
-- `src/main/java/com/example/bookingapi/security/UserPrincipal.java`
-- `src/main/java/com/example/bookingapi/security/CustomUserDetailsService.java`
-- `src/main/java/com/example/bookingapi/security/JwtTokenProvider.java`
-- `src/main/java/com/example/bookingapi/security/JwtAuthenticationFilter.java`
-- `src/main/java/com/example/bookingapi/service/impl/CustomUserDetailsServiceImpl.java`
+- `src/main/java/com/example/bookingapi/common/security/UserPrincipal.java`
+- `src/main/java/com/example/bookingapi/common/security/CustomUserDetailsService.java`
+- `src/main/java/com/example/bookingapi/common/security/JwtTokenProvider.java`
+- `src/main/java/com/example/bookingapi/common/security/JwtAuthenticationFilter.java`
+- `src/main/java/com/example/bookingapi/features/auth/service/impl/CustomUserDetailsServiceImpl.java`
 
 ### Auth / API
-- `src/main/java/com/example/bookingapi/service/AuthService.java`
-- `src/main/java/com/example/bookingapi/service/impl/AuthServiceImpl.java`
-- `src/main/java/com/example/bookingapi/controller/AuthController.java`
-- `src/main/java/com/example/bookingapi/exception/GlobalExceptionHandler.java`
+- `src/main/java/com/example/bookingapi/features/auth/service/AuthService.java`
+- `src/main/java/com/example/bookingapi/features/auth/service/impl/AuthServiceImpl.java`
+- `src/main/java/com/example/bookingapi/features/auth/controller/AuthController.java`
+- `src/main/java/com/example/bookingapi/common/exception/GlobalExceptionHandler.java`
 
 ### DTO
-- `src/main/java/com/example/bookingapi/payload/request/OtpRequest.java`
-- `src/main/java/com/example/bookingapi/payload/request/OtpVerifyRequest.java`
-- `src/main/java/com/example/bookingapi/payload/request/PasswordResetConfirmRequest.java`
-- `src/main/java/com/example/bookingapi/payload/response/OtpTokenResponse.java`
+- `src/main/java/com/example/bookingapi/features/auth/dto/request/OtpRequest.java`
+- `src/main/java/com/example/bookingapi/features/auth/dto/request/OtpVerifyRequest.java`
+- `src/main/java/com/example/bookingapi/features/auth/dto/request/PasswordResetConfirmRequest.java`
+- `src/main/java/com/example/bookingapi/features/auth/dto/response/OtpTokenResponse.java`
 
 ### Migration
 - `src/main/resources/db/migration/V4__identity_auth_actor.sql`
