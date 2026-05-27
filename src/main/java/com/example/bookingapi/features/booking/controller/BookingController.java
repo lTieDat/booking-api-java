@@ -1,0 +1,84 @@
+package com.example.bookingapi.features.booking.controller;
+
+import com.example.bookingapi.common.openapi.CommonApiResponses;
+import com.example.bookingapi.features.booking.dto.request.BookingRequest;
+import com.example.bookingapi.features.booking.dto.response.BookingResponse;
+import com.example.bookingapi.common.response.ApiMessageResponse;
+import com.example.bookingapi.common.response.PagedResponse;
+import com.example.bookingapi.common.security.CurrentUser;
+import com.example.bookingapi.common.security.UserPrincipal;
+import com.example.bookingapi.features.booking.service.BookingService;
+import com.example.bookingapi.common.util.AppConstants;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/bookings")
+@Tag(name = "Bookings", description = "Booking management endpoints")
+@SecurityRequirement(name = "bearerAuth")
+public class BookingController {
+
+    @Autowired
+    private BookingService bookingService;
+
+    @PostMapping
+    @Operation(summary = "Create booking", description = "Create a new booking for the current authenticated user.")
+    @ApiResponse(responseCode = "201", description = "Booking created successfully.",
+            content = @Content(schema = @Schema(implementation = BookingResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<BookingResponse> createBooking(@Valid @RequestBody BookingRequest bookingRequest,
+                                                  @Parameter(hidden = true)
+                                                  @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(bookingService.createBooking(bookingRequest, currentUser));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get my bookings", description = "Return paginated bookings of the current authenticated user.")
+    @ApiResponse(responseCode = "200", description = "Current user's bookings returned successfully.",
+            content = @Content(schema = @Schema(implementation = PagedResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<PagedResponse<BookingResponse>> getMyBookings(
+            @Parameter(hidden = true)
+            @CurrentUser UserPrincipal currentUser,
+            @Parameter(description = "Page index starting from 0")
+            @RequestParam(defaultValue = AppConstants.DEFAULT_PAGE_NUMBER) int page,
+            @Parameter(description = "Page size")
+            @RequestParam(defaultValue = AppConstants.DEFAULT_PAGE_SIZE) int size) {
+        return ResponseEntity.ok(bookingService.getUserBookings(currentUser, page, size));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get booking by id", description = "Return a booking that belongs to the current authenticated user.")
+    @ApiResponse(responseCode = "200", description = "Booking returned successfully.",
+            content = @Content(schema = @Schema(implementation = BookingResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<BookingResponse> getBooking(@PathVariable UUID id,
+                                               @Parameter(hidden = true)
+                                               @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.getBooking(id, currentUser));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Cancel booking", description = "Cancel a booking that belongs to the current authenticated user.")
+    @ApiResponse(responseCode = "200", description = "Booking cancelled successfully.",
+            content = @Content(schema = @Schema(implementation = ApiMessageResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<ApiMessageResponse> cancelBooking(@PathVariable UUID id,
+                                                      @Parameter(hidden = true)
+                                                      @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.cancelBooking(id, currentUser));
+    }
+}
