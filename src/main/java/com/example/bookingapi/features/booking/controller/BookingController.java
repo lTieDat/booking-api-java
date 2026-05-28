@@ -2,6 +2,8 @@ package com.example.bookingapi.features.booking.controller;
 
 import com.example.bookingapi.common.openapi.CommonApiResponses;
 import com.example.bookingapi.features.booking.dto.request.BookingRequest;
+import com.example.bookingapi.features.booking.dto.request.BookingStatusUpdateRequest;
+import com.example.bookingapi.features.booking.dto.request.CancelBookingRequest;
 import com.example.bookingapi.features.booking.dto.response.BookingResponse;
 import com.example.bookingapi.common.response.ApiMessageResponse;
 import com.example.bookingapi.common.response.PagedResponse;
@@ -13,6 +15,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,7 +29,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/bookings")
-@Tag(name = "Bookings", description = "Booking management endpoints")
+@Tag(
+        name = "Bookings",
+        description = "Booking management endpoints. Front-desk local/dev account: reception@booking.local / admin123."
+)
 @SecurityRequirement(name = "bearerAuth")
 public class BookingController {
 
@@ -76,9 +82,73 @@ public class BookingController {
     @ApiResponse(responseCode = "200", description = "Booking cancelled successfully.",
             content = @Content(schema = @Schema(implementation = ApiMessageResponse.class)))
     @CommonApiResponses
-    public ResponseEntity<ApiMessageResponse> cancelBooking(@PathVariable UUID id,
-                                                      @Parameter(hidden = true)
-                                                      @CurrentUser UserPrincipal currentUser) {
-        return ResponseEntity.ok(bookingService.cancelBooking(id, currentUser));
+    public ResponseEntity<ApiMessageResponse> cancelBooking(
+            @PathVariable UUID id,
+            @Valid @RequestBody CancelBookingRequest request,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.cancelBooking(id, currentUser, request));
     }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update booking status", description = "Move a booking through the allowed status state machine. Admin only.")
+    @ApiResponse(responseCode = "200", description = "Booking status updated successfully.",
+            content = @Content(schema = @Schema(implementation = BookingResponse.class)))
+    @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
+    @CommonApiResponses
+    public ResponseEntity<BookingResponse> updateBookingStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody BookingStatusUpdateRequest request,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.updateBookingStatus(id, request, currentUser));
+    }
+
+    @PatchMapping("/{id}/check-in")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
+    @Operation(
+            summary = "Check-in booking",
+            description = "Check-in a confirmed booking. Admin or receptionist only. "
+                    + "Local/dev receptionist account: reception@booking.local / admin123."
+    )
+    @ApiResponse(responseCode = "200", description = "Booking checked-in successfully.",
+                content = @Content(schema = @Schema(implementation = ApiMessageResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<ApiMessageResponse> checkInBooking(
+            @PathVariable UUID id,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.checkInBooking(id, currentUser));
+    }
+
+    @PatchMapping("/{id}/check-out")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
+    @Operation(
+            summary = "Check-out booking",
+            description = "Check-out a checked-in booking. Admin or receptionist only. "
+                    + "Local/dev receptionist account: reception@booking.local / admin123."
+    )
+    @ApiResponse(responseCode = "200", description = "Booking checked-out successfully.",
+            content = @Content(schema = @Schema(implementation = ApiMessageResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<ApiMessageResponse> checkOutBooking(
+            @PathVariable UUID id,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.checkOutBooking(id, currentUser));
+    }
+
+    @PatchMapping("/{id}/no-show")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
+    @Operation(
+            summary = "Mark booking as no-show",
+            description = "Mark a confirmed booking as no-show. Admin or receptionist only. "
+                    + "Local/dev receptionist account: reception@booking.local / admin123."
+    )
+    @ApiResponse(responseCode = "200", description = "Booking marked as no-show successfully.",
+            content = @Content(schema = @Schema(implementation = ApiMessageResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<ApiMessageResponse> markNoShow(
+            @PathVariable UUID id,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(bookingService.markNoShow(id, currentUser));
+    }
+
 }

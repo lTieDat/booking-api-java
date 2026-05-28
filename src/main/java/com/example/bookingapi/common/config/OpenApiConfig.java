@@ -23,8 +23,9 @@ import org.springframework.context.annotation.Configuration;
                 title = "BookingAPI",
                 version = "v1",
                 description = "REST API for booking hotels, rooms, bookings and authentication. "
-                        + "Local/dev default manager account: admin@booking.local / admin123. "
-                        + "Use POST /api/auth/manager/signin to get a JWT for admin endpoints.",
+                        + "Local/dev default manager accounts: admin@booking.local / admin123 and manager@booking.local / admin123. "
+                        + "Local/dev default receptionist account: reception@booking.local / admin123. "
+                        + "Use POST /api/auth/manager/signin for manager/admin JWTs and POST /api/auth/signin for receptionist JWTs.",
                 contact = @Contact(name = "BookingAPI Team")
         )
 )

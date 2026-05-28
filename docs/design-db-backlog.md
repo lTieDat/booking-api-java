@@ -1,6 +1,6 @@
-# Backlog triển khai `design-db.md` cho BookingAPI
+# Backlog triển khai `design-db.dbml` cho BookingAPI
 
-Tài liệu này là backlog triển khai theo đúng schema ở [`docs/design-db.md`](design-db.md). Mục tiêu là đi theo **thứ tự phụ thuộc** để tránh làm ngược và phải refactor nhiều lần.
+Tài liệu này là backlog triển khai theo đúng schema ở [`docs/design-db.dbml`](design-db.dbml). Mục tiêu là đi theo **thứ tự phụ thuộc** để tránh làm ngược và phải refactor nhiều lần.
 
 ## Nguyên tắc ưu tiên
 
@@ -9,7 +9,7 @@ Tài liệu này là backlog triển khai theo đúng schema ở [`docs/design-d
 3. Làm **master data** trước: location, hotel, room type, room, price.
 4. Làm **booking + inventory hold** trước payment/invoice.
 5. Làm **policy layer** sau khi booking core chạy ổn: cancellation, discount, tax.
-6. Làm **financial flow** sau cùng: payment, refund, invoice.
+6. Làm **financial flow** sau cùng: payOS payment link, webhook, refund, invoice.
 7. Hoàn thiện **history, review, admin workflow** ở phase cuối.
 
 ---
@@ -20,7 +20,7 @@ Tài liệu này là backlog triển khai theo đúng schema ở [`docs/design-d
 Thiết lập chuẩn dữ liệu và convention dùng chung cho toàn hệ thống.
 
 ### Deliverables
-- Chốt enum theo `design-db.md`
+- Chốt enum theo `design-db.dbml`
 - Chuẩn hóa `uuid`, `timestamp`, `numeric/BigDecimal`
 - Base entity + auditing
 - Chuẩn Flyway migration order
@@ -40,6 +40,7 @@ Xây lớp xác thực và actor context để các nghiệp vụ khác có th�
 
 ### Deliverables
 - `User`, `Manager`, `OTPToken`
+- `RoleName` hiện có `ROLE_USER`, `ROLE_ADMIN`; thêm `ROLE_RECEPTIONIST` khi triển khai receptionist workflow
 - Signup/login user
 - Login manager/admin
 - Verify email / reset password
@@ -59,15 +60,15 @@ Tạo master data cho hệ thống khách sạn.
 
 ### Deliverables
 - `Location`
-- `HotelGroup`
 - `Hotel`
-- `HotelManager`
-- CRUD hotel group / hotel
-- Gán manager theo scope
+- `HotelImage`
+- `ReceptionistAssignment` sau khi có `Hotel`
+- CRUD location / hotel / hotel image
+- Gán receptionist theo từng hotel
 
 ### Acceptance notes
-- hotel thuộc đúng group và location
-- manager scope được enforce ở application layer
+- hotel thuộc đúng location
+- receptionist chỉ thao tác được booking thuộc hotel được assign
 - có index/constraint cho dữ liệu lookup thường dùng
 
 ---
@@ -80,15 +81,14 @@ Chuẩn hóa cấu trúc phòng và giá cơ bản.
 ### Deliverables
 - `RoomType`
 - `Room`
-- `RoomPrice`
-- `Service`
-- CRUD room type / room / price / service
+- `Amenity`
+- CRUD room type / room / amenity
 
 ### Acceptance notes
 - `RoomType` là loại phòng bán cho khách
 - `Room` là phòng vật lý cụ thể
-- `roomNo` unique theo phạm vi hợp lý của hotel
-- giá phòng có hiệu lực theo thời gian và guest type
+- `room_number` unique theo `room_type_id`
+- `base_price` nằm ở `RoomType`, giá tại thời điểm booking snapshot vào `BookedRoom.unit_price`
 
 ---
 
@@ -102,16 +102,15 @@ Xây luồng đặt phòng lõi và chống overbooking.
 - `InventoryHold`
 - `Booking`
 - `BookedRoom`
-- `BookingGuest`
-- `BookingRoomAssignment`
-- Booking state machine: pending / paid / confirmed / checked_in / checked_out / cancelled / refunded / no_show
+- `Guest`
+- Booking state machine: pending / confirmed / checked_in / checked_out / cancelled / refunded / no_show
 
 ### Acceptance notes
 - tạo booking phải tạo hold inventory
 - release inventory đúng khi cancelled / expired
 - không để inventory âm
 - booking có snapshot đủ để không phụ thuộc dữ liệu sau này
-- chỉ 1 guest `isPrimary=true` trên mỗi booking
+- `Payment.status` quản lý trạng thái dòng tiền, không nhét `paid` vào `Booking.status`
 
 ---
 
@@ -121,14 +120,14 @@ Xây luồng đặt phòng lõi và chống overbooking.
 Thêm lớp chính sách để tính phí và áp dụng khuyến mãi đúng nghiệp vụ.
 
 ### Deliverables
-- `CancellationPolicy`, `CancellationPolicyTier`
-- `Discount`, `DiscountScope`
+- `CancellationPolicy`
+- `Discount`
 - `TaxConfig`, `BookingTax`
 - rule snapshot cho policy/discount/tax
 
 ### Acceptance notes
-- phí huỷ tính được theo mốc thời gian trước check-in
-- discount có scope rõ ràng: all / group / hotel / room_type
+- phí huỷ dùng policy đang gắn với booking tại thời điểm hủy
+- discount có điều kiện min/max order và usage rõ ràng
 - tax inclusive/exclusive xử lý đúng
 - snapshot không bị đổi khi config gốc thay đổi
 
@@ -137,37 +136,45 @@ Thêm lớp chính sách để tính phí và áp dụng khuyến mãi đúng ng
 ## Epic 6 — Payment / Refund / Invoice
 
 ### Mục tiêu
-Hoàn thiện luồng tài chính end-to-end.
+Hoàn thiện luồng tài chính end-to-end, ưu tiên tích hợp payOS trước.
 
 ### Deliverables
-- `PaymentMethod`
+- `PaymentProviderAccount`
 - `Payment`
+- `PaymentTransaction`
+- `PaymentWebhookEvent`
 - `Refund`
 - `Invoice`
 - `InvoiceLine`
+- payOS adapter: create payment link, get payment request, cancel payment link
+- payOS webhook endpoint: verify signature, persist raw payload, process idempotent
+- reconciliation job cho payment bị trễ webhook hoặc callback lỗi
 
 ### Acceptance notes
-- payment có trạng thái rõ ràng và có gateway trace
+- payment lưu được `orderCode`, `paymentLinkId`, `checkoutUrl`, `qrCode`, `returnUrl`, `cancelUrl`
+- webhook signature được verify trước khi cập nhật trạng thái nghiệp vụ
+- returnUrl/cancelUrl chỉ dùng cho UX, không dùng làm nguồn sự thật trạng thái payment
+- duplicate webhook/transaction không tạo thanh toán trùng
+- payment có trạng thái rõ ràng và có provider trace
 - refund không vượt quá amount đã thanh toán
 - invoice có line item và trạng thái draft / issued / paid / voided
 - booking paid/refunded khớp với dữ liệu payment/refund
 
 ---
 
-## Epic 7 — History / Review / Admin workflow
+## Epic 7 — History / Admin workflow
 
 ### Mục tiêu
 Hoàn thiện vận hành và hậu kiểm.
 
 ### Deliverables
-- `BookingHistory`
-- `Review`
-- workflow admin/manager cho xác nhận, check-in, check-out, huỷ
+- `BookingStatusLog`
+- workflow admin/manager/receptionist cho xác nhận, check-in, check-out, huỷ
 
 ### Acceptance notes
 - mọi state transition có audit trail
-- review chỉ hợp lệ khi booking đã hoàn tất
 - manager action trace được bằng actor
+- receptionist action trace được bằng user và role snapshot
 
 ---
 
@@ -176,7 +183,7 @@ Hoàn thiện vận hành và hậu kiểm.
 ### Sprint 1
 - Epic 0
 - Epic 1
-- một phần Epic 2 (Location, HotelGroup)
+- một phần Epic 2 (Location, Hotel)
 
 ### Sprint 2
 - phần còn lại của Epic 2
@@ -210,8 +217,7 @@ Hoàn thiện vận hành và hậu kiểm.
 
 ## Tài liệu tham chiếu
 
-- Schema chi tiết: [`docs/design-db.md`](design-db.md)
+- Schema chi tiết: [`docs/design-db.dbml`](design-db.dbml)
 - Hướng dẫn Flyway: [`docs/migration-guide.md`](migration-guide.md)
 - JPA & database integration: [`docs/jpa-database-guide.md`](jpa-database-guide.md)
 - REST API walkthrough: [`docs/rest-api-walkthrough.md`](rest-api-walkthrough.md)
-

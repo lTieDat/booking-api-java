@@ -26,6 +26,7 @@ BookingAPI dùng **stateless JWT** cho phần xác thực:
 - `GET /api/hotels/**` được phép truy cập không cần đăng nhập
 - các endpoint còn lại cần JWT hợp lệ
 - các thao tác admin dùng `@PreAuthorize("hasRole('ADMIN')")`
+- các thao tác lễ tân như check-in, check-out, no-show dùng `@PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")`
 - controller có thể nhận user hiện tại qua `@CurrentUser`
 
 Tài liệu lý thuyết + ví dụ chi tiết: [`docs/jwt-security-guide.md`](docs/jwt-security-guide.md)
@@ -140,7 +141,7 @@ createdb booking_api
 
 ```
 users       — id, name, username, email, password, created_at, updated_at
-roles       — id, name (ROLE_USER / ROLE_ADMIN)
+roles       — id, name (ROLE_USER / ROLE_ADMIN / ROLE_RECEPTIONIST)
 user_roles  — user_id, role_id
 hotels      — id, name, description, address, city, country, ...audit
 rooms       — id, hotel_id, room_number, room_type, capacity, price_per_night, ...audit
@@ -282,16 +283,47 @@ curl -X POST http://localhost:8080/api/hotels/1/rooms \
 | GET | `/api/bookings/me` | đăng nhập | Booking của tôi |
 | GET | `/api/bookings/{id}` | đăng nhập | Chi tiết booking |
 | DELETE | `/api/bookings/{id}` | đăng nhập | Huỷ booking |
+| PATCH | `/api/bookings/{id}/status` | ADMIN | Chuyển trạng thái booking theo state machine |
 
 ```bash
 curl -X POST http://localhost:8080/api/bookings \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "roomId": 1,
+    "rooms": [
+      {
+        "roomTypeId": "41000000-0000-0000-0000-000000000001",
+        "quantity": 1
+      }
+    ],
     "checkInDate": "2026-05-10",
     "checkOutDate": "2026-05-13"
   }'
+```
+
+#### Booking State Machine
+
+Booking mới được tạo ở trạng thái `PENDING`. Mọi thay đổi trạng thái phải đi qua `BookingStateMachine`; nếu transition không hợp lệ, API trả `400 Bad Request`.
+
+Transition hiện tại:
+
+```text
+PENDING     -> CONFIRMED, CANCELLED
+CONFIRMED   -> CHECKED_IN, CANCELLED, NO_SHOW
+CHECKED_IN  -> CHECKED_OUT
+CHECKED_OUT -> REFUNDED
+CANCELLED   -> REFUNDED
+REFUNDED    -> terminal
+NO_SHOW     -> terminal
+```
+
+User có thể huỷ booking của chính mình qua `DELETE /api/bookings/{id}` nếu booking đang ở trạng thái cho phép huỷ. Admin có thể chuyển trạng thái bằng:
+
+```bash
+curl -X PATCH http://localhost:8080/api/bookings/<booking-id>/status \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "CONFIRMED" }'
 ```
 
 ### Users

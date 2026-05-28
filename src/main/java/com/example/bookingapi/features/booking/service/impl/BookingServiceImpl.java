@@ -3,24 +3,30 @@ package com.example.bookingapi.features.booking.service.impl;
 import com.example.bookingapi.common.exception.BadRequestException;
 import com.example.bookingapi.common.exception.ResourceNotFoundException;
 import com.example.bookingapi.common.exception.UnauthorizedException;
+import com.example.bookingapi.features.auth.model.enums.ActorType;
 import com.example.bookingapi.features.booking.model.BookedRoom;
 import com.example.bookingapi.features.booking.model.Booking;
+import com.example.bookingapi.features.booking.model.BookingStatusLog;
 import com.example.bookingapi.features.room.model.RoomType;
 import com.example.bookingapi.features.user.model.User;
 import com.example.bookingapi.features.booking.model.enums.BookingStatus;
 import com.example.bookingapi.features.booking.dto.request.BookedRoomRequest;
 import com.example.bookingapi.features.booking.dto.request.BookingRequest;
+import com.example.bookingapi.features.booking.dto.request.BookingStatusUpdateRequest;
+import com.example.bookingapi.features.booking.dto.request.CancelBookingRequest;
 import com.example.bookingapi.common.response.ApiMessageResponse;
 import com.example.bookingapi.features.booking.dto.response.BookedRoomResponse;
 import com.example.bookingapi.features.booking.dto.response.BookingResponse;
 import com.example.bookingapi.common.response.PagedResponse;
 import com.example.bookingapi.features.booking.repository.BookingRepository;
+import com.example.bookingapi.features.booking.repository.BookingStatusLogRepository;
 import com.example.bookingapi.features.room.repository.RoomTypeRepository;
 import com.example.bookingapi.features.user.repository.UserRepository;
 import com.example.bookingapi.common.security.UserPrincipal;
+import com.example.bookingapi.features.booking.service.BookingStateMachine;
 import com.example.bookingapi.features.booking.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.PermissionDeniedDataAccessException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -40,8 +47,13 @@ import java.util.stream.Collectors;
 public class BookingServiceImpl implements BookingService {
 
     @Autowired private BookingRepository bookingRepository;
+    @Autowired private BookingStatusLogRepository bookingStatusLogRepository;
     @Autowired private RoomTypeRepository roomTypeRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private BookingStateMachine bookingStateMachine;
+
+    @Value("${app.booking.pending-expiration-minutes:15}")
+    private long pendingExpirationMinutes;
 
     @Override
     @Transactional
@@ -61,7 +73,8 @@ public class BookingServiceImpl implements BookingService {
         booking.setCheckInDate(request.getCheckInDate());
         booking.setCheckOutDate(request.getCheckOutDate());
         booking.setCurrency("VND");
-        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setStatus(bookingStateMachine.initialStatus());
+        booking.setExpiredAt(LocalDateTime.now().plusMinutes(pendingExpirationMinutes));
 
         BigDecimal totalPrice = BigDecimal.ZERO;
         for (BookedRoomRequest item : request.getRooms()) {
@@ -82,7 +95,42 @@ public class BookingServiceImpl implements BookingService {
         }
 
         booking.setTotalPrice(totalPrice);
-        return toBookingResponse(bookingRepository.save(booking));
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusLog(savedBooking, null, savedBooking.getStatus(), currentUser, "Booking created");
+        return toBookingResponse(savedBooking);
+    }
+
+    @Override
+    @Transactional
+    public int expirePendingBookings() {
+        List<Booking> bookings = bookingRepository
+                .findByStatusAndExpiredAtLessThanEqual(BookingStatus.PENDING, LocalDateTime.now());
+
+        for (Booking booking : bookings) {
+            bookingStateMachine.transition(booking, BookingStatus.EXPIRED);
+            recordStatusLog(booking, BookingStatus.PENDING, BookingStatus.EXPIRED, null, "Booking expired");
+        }
+
+        bookingRepository.saveAll(bookings);
+        return bookings.size();
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse updateBookingStatus(UUID id, BookingStatusUpdateRequest request, UserPrincipal currentUser) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        BookingStatus fromStatus = booking.getStatus();
+        bookingStateMachine.transition(booking, request.getStatus());
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusLog(
+                savedBooking,
+                fromStatus,
+                savedBooking.getStatus(),
+                currentUser,
+                resolveNote(request.getReason(), "Booking status updated")
+        );
+        return toBookingResponse(savedBooking);
     }
 
     @Override
@@ -149,14 +197,83 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public ApiMessageResponse cancelBooking(UUID id, UserPrincipal currentUser) {
+    public ApiMessageResponse cancelBooking(UUID id, UserPrincipal currentUser, CancelBookingRequest request) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
         if (!booking.getUser().getId().equals(currentUser.getId())) {
             throw new UnauthorizedException("You don't have permission to cancel this booking");
         }
-        booking.setStatus(BookingStatus.CANCELLED);
-        bookingRepository.save(booking);
+        BookingStatus fromStatus = booking.getStatus();
+        bookingStateMachine.transition(booking, BookingStatus.CANCELLED);
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusLog(savedBooking, fromStatus, savedBooking.getStatus(), currentUser, request.getReason().trim());
         return new ApiMessageResponse(true, "Booking cancelled successfully");
     }
+
+    private void recordStatusLog(
+            Booking booking,
+            BookingStatus fromStatus,
+            BookingStatus toStatus,
+            UserPrincipal actor,
+            String note
+    ) {
+        BookingStatusLog log = new BookingStatusLog();
+        log.setBooking(booking);
+        log.setFromStatus(fromStatus);
+        log.setToStatus(toStatus);
+        if (actor == null) {
+            log.setPerformedByType(ActorType.SYSTEM);
+        } else {
+            log.setPerformedBy(actor.getId());
+            log.setPerformedByType(actor.getActorType());
+        }
+        log.setNote(note);
+        bookingStatusLogRepository.save(log);
+    }
+
+    private String resolveNote(String note, String fallback) {
+        if (note == null || note.isBlank()) {
+            return fallback;
+        }
+        return note.trim();
+    }
+
+    @Override
+    @Transactional
+    public ApiMessageResponse checkInBooking(UUID id, UserPrincipal currentUser) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        BookingStatus fromStatus = booking.getStatus();
+        bookingStateMachine.transition(booking, BookingStatus.CHECKED_IN);
+        booking.setActualCheckInDate(LocalDateTime.now());
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusLog(savedBooking, fromStatus, savedBooking.getStatus(), currentUser, "Booking checked-in");
+        return new ApiMessageResponse(true, "Booking checked-in successfully");
+    }
+
+    @Override
+    @Transactional
+    public ApiMessageResponse checkOutBooking(UUID id, UserPrincipal currentUser) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        BookingStatus fromStatus = booking.getStatus();
+        bookingStateMachine.transition(booking, BookingStatus.CHECKED_OUT);
+        booking.setActualCheckOutDate(LocalDateTime.now());
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusLog(savedBooking, fromStatus, savedBooking.getStatus(), currentUser, "Booking checked-out");
+        return new ApiMessageResponse(true, "Booking checked-out successfully");
+    }
+
+    @Override
+    @Transactional
+    public ApiMessageResponse markNoShow(UUID id, UserPrincipal currentUser) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        BookingStatus fromStatus = booking.getStatus();
+        bookingStateMachine.transition(booking, BookingStatus.NO_SHOW);
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusLog(savedBooking, fromStatus, savedBooking.getStatus(), currentUser, "Booking marked as no-show");
+        return new ApiMessageResponse(true, "Booking marked as no-show successfully");
+    }
+
 }

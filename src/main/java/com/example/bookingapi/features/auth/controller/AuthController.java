@@ -33,7 +33,11 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/signin")
-    @Operation(summary = "Sign in as user", description = "Authenticate an existing user and return a JWT access token.")
+    @Operation(
+            summary = "Sign in as user",
+            description = "Authenticate an existing user and return a JWT access token. "
+                    + "Local/dev default receptionist: email reception@booking.local, password admin123."
+    )
     @ApiResponse(responseCode = "200", description = "User authenticated successfully.",
             content = @Content(schema = @Schema(implementation = JwtAuthResponse.class)))
     @CommonApiResponses
@@ -46,7 +50,7 @@ public class AuthController {
     @Operation(
             summary = "Sign in as manager",
             description = "Authenticate a manager account and return a JWT access token. "
-                    + "Local/dev default manager: email admin@booking.local, password admin123."
+                    + "Local/dev default managers: admin@booking.local / admin123 and manager@booking.local / admin123."
     )
     @ApiResponse(responseCode = "200", description = "Manager authenticated successfully.",
             content = @Content(schema = @Schema(implementation = JwtAuthResponse.class)))

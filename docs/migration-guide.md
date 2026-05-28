@@ -210,7 +210,7 @@ Khi checksum trong `flyway_schema_history` lệch do ai đó sửa migration đ�
 
 ```bash
 ./mvnw flyway:repair \
-  -Dflyway.url=jdbc:postgresql://localhost:5432/booking_api \
+  -Dflyway.url=jdbc:postgresql://localhost:5432/mydb \
   -Dflyway.user=postgres \
   -Dflyway.password=postgres
 ```
