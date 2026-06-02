@@ -60,7 +60,8 @@ public class BookingStateMachine {
         transitions.put(BookingStatus.CONFIRMED, immutableEnumSet(
                 BookingStatus.CHECKED_IN,
                 BookingStatus.CANCELLED,
-                BookingStatus.NO_SHOW
+                BookingStatus.NO_SHOW,
+                BookingStatus.REFUNDED
         ));
         transitions.put(BookingStatus.CHECKED_IN, immutableEnumSet(BookingStatus.CHECKED_OUT));
         transitions.put(BookingStatus.CHECKED_OUT, immutableEnumSet(BookingStatus.REFUNDED));

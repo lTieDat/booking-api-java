@@ -32,6 +32,8 @@ public class BookingRequestHashService {
         StringBuilder builder = new StringBuilder();
         builder.append("checkIn=").append(request.getCheckInDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         builder.append("|checkOut=").append(request.getCheckOutDate().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        builder.append("|discountCode=").append(normalizeNullableUpper(request.getDiscountCode()));
+        builder.append("|cancellationPolicyId=").append(request.getCancellationPolicyId());
         builder.append("|guest=").append(toCanonicalGuest(request.getGuest()));
         builder.append("|rooms=");
         for (CanonicalRoom room : toCanonicalRooms(request.getRooms())) {
@@ -67,6 +69,10 @@ public class BookingRequestHashService {
 
     private String normalizeNullable(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String normalizeNullableUpper(String value) {
+        return value == null ? null : value.trim().toUpperCase();
     }
 
     private record CanonicalRoom(String roomTypeId, Integer quantity) {

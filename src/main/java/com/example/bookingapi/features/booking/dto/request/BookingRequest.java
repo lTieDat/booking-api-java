@@ -10,6 +10,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -30,4 +31,8 @@ public class BookingRequest {
     @NotNull
     @Valid
     private BookingGuestRequest guest;
+
+    private String discountCode;
+
+    private UUID cancellationPolicyId;
 }

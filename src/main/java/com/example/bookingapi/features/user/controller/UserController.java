@@ -1,6 +1,8 @@
 package com.example.bookingapi.features.user.controller;
 
 import com.example.bookingapi.common.openapi.CommonApiResponses;
+import com.example.bookingapi.features.user.dto.request.UpdateUserProfileRequest;
+import com.example.bookingapi.features.user.dto.response.CurrentUserProfile;
 import com.example.bookingapi.features.user.dto.response.UserIdentityAvailability;
 import com.example.bookingapi.features.user.dto.response.UserProfile;
 import com.example.bookingapi.features.user.dto.response.UserSummary;
@@ -9,6 +11,7 @@ import com.example.bookingapi.common.security.UserPrincipal;
 import com.example.bookingapi.features.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +37,30 @@ public class UserController {
     @CommonApiResponses
     public ResponseEntity<UserSummary> getCurrentUser(@Parameter(hidden = true) @CurrentUser UserPrincipal currentUser) {
         return ResponseEntity.ok(userService.getCurrentUser(currentUser));
+    }
+
+    @GetMapping("/me/profile")
+    @PreAuthorize("hasRole('USER')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Get my profile", description = "Return the authenticated user's editable profile information.")
+    @ApiResponse(responseCode = "200", description = "Editable user profile returned successfully.",
+            content = @Content(schema = @Schema(implementation = CurrentUserProfile.class)))
+    @CommonApiResponses
+    public ResponseEntity<CurrentUserProfile> getMyProfile(@CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(userService.getMyProfile(currentUser));
+    }
+
+    @PutMapping("/me/profile")
+    @PreAuthorize("hasRole('USER')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update my profile", description = "Update the authenticated user's name, username, and email.")
+    @ApiResponse(responseCode = "200", description = "User profile updated successfully.",
+            content = @Content(schema = @Schema(implementation = CurrentUserProfile.class)))
+    @CommonApiResponses
+    public ResponseEntity<CurrentUserProfile> updateMyProfile(
+            @CurrentUser UserPrincipal currentUser,
+            @RequestBody @jakarta.validation.Valid UpdateUserProfileRequest request) {
+        return ResponseEntity.ok(userService.updateMyProfile(currentUser, request));
     }
 
     @GetMapping("/checkUsernameAvailability")

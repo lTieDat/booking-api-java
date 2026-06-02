@@ -1,8 +1,13 @@
 package com.example.bookingapi.features.hotel.controller;
 
 import com.example.bookingapi.common.openapi.CommonApiResponses;
+import com.example.bookingapi.common.security.CurrentUser;
+import com.example.bookingapi.common.security.UserPrincipal;
+import com.example.bookingapi.features.hotel.dto.request.HotelSearchRequest;
 import com.example.bookingapi.features.hotel.dto.request.HotelRequest;
 import com.example.bookingapi.features.hotel.dto.response.HotelResponse;
+import com.example.bookingapi.features.hotel.dto.response.HotelSearchResponse;
+import com.example.bookingapi.features.hotel.dto.response.ManagerHotelStatsResponse;
 import com.example.bookingapi.common.response.ApiMessageResponse;
 import com.example.bookingapi.common.response.PagedResponse;
 import com.example.bookingapi.features.hotel.service.HotelService;
@@ -46,6 +51,34 @@ public class HotelController {
             @Parameter(description = "Hotel Name, Location or Landmark")
             @RequestParam(required = false) String keyword) {
         return ResponseEntity.ok(hotelService.getAllHotels(page, size, keyword));
+    }
+
+    @PostMapping("/search")
+    @Operation(
+            summary = "Search available hotels by stay and location",
+            description = "Return paginated hotels that have available inventory for the requested stay. Results are sorted by rating, review count, distance, then price."
+    )
+    @ApiResponse(responseCode = "200", description = "Hotel search completed successfully.",
+            content = @Content(schema = @Schema(implementation = PagedResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<PagedResponse<HotelSearchResponse>> searchHotels(
+            @Valid @RequestBody HotelSearchRequest request) {
+        return ResponseEntity.ok(hotelService.searchHotels(request));
+    }
+
+    @GetMapping("/manager/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "Get assigned hotel statistics for manager",
+            description = "Return booking, revenue, room, and review overview for the hotel assigned to the current manager account."
+    )
+    @ApiResponse(responseCode = "200", description = "Hotel manager statistics returned successfully.",
+            content = @Content(schema = @Schema(implementation = ManagerHotelStatsResponse.class)))
+    @CommonApiResponses
+    public ResponseEntity<ManagerHotelStatsResponse> getManagerHotelStats(
+            @CurrentUser UserPrincipal currentUser) {
+        return ResponseEntity.ok(hotelService.getManagerHotelStats(currentUser));
     }
 
     @GetMapping("/{id}")

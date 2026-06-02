@@ -248,18 +248,34 @@ Ví dụ request:
 curl -X POST http://localhost:8080/api/bookings \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 01JZ7Q3M2AZR9V6DS6E8Q8XK7A" \
   -d '{
-    "roomId": 1,
-    "checkInDate": "2026-05-10",
-    "checkOutDate": "2026-05-13"
+    "rooms": [
+      {
+        "roomTypeId": "41000000-0000-0000-0000-000000000001",
+        "quantity": 1
+      }
+    ],
+    "checkInDate": "2026-06-10T14:00:00",
+    "checkOutDate": "2026-06-13T12:00:00",
+    "discountCode": "SUMMER10",
+    "guest": {
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "identifyCardNo": "ID123456",
+      "phoneNumber": "0901234567",
+      "email": "jane@example.com"
+    }
   }'
 ```
 
 Giải thích payload:
 
-- `roomId`: phòng muốn đặt
-- `checkInDate`: ngày nhận phòng
-- `checkOutDate`: ngày trả phòng
+- `rooms[]`: danh sách loại phòng và số lượng muốn đặt
+- `checkInDate`: ngày giờ nhận phòng
+- `checkOutDate`: ngày giờ trả phòng
+- `guest`: thông tin khách lưu trú chính
+- `discountCode`: mã giảm giá tuỳ chọn
 
 Điểm quan trọng:
 
@@ -521,5 +537,4 @@ Walkthrough này cho thấy BookingAPI đang triển khai REST API theo cách r�
 - service layer giữ logic nghiệp vụ thay vì nhồi hết vào controller
 
 Nếu bạn đọc source code song song với tài liệu này, bạn sẽ thấy mỗi endpoint của repo đều nối với một phần rất rõ ràng trong luồng xử lý.
-
 

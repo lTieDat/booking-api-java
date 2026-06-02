@@ -1,6 +1,7 @@
 package com.example.bookingapi.features.auth.model;
 
 import com.example.bookingapi.common.audit.DateAudit;
+import com.example.bookingapi.features.hotel.model.Hotel;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -39,6 +40,10 @@ public class Manager extends DateAudit {
     @Size(max = 100)
     @Column(name = "full_name")
     private String fullName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hotel_id")
+    private Hotel hotel;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;

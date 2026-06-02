@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -13,4 +15,6 @@ public class LocationResponse {
     private String province;
     private String district;
     private String detail;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
 }

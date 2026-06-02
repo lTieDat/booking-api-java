@@ -5,11 +5,12 @@ import com.example.bookingapi.features.booking.model.enums.DiscountType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -39,6 +40,9 @@ public class Discount extends UserDateAudit {
     @Enumerated(EnumType.STRING)
     private DiscountType discountType = DiscountType.FIXED_AMOUNT;
 
+    @Column(name = "discount_value", nullable = false)
+    private Long discountValue = 0L;
+
     @Column(name = "min_order_value", nullable = false)
     private Integer minOrderValue;
 
@@ -46,12 +50,12 @@ public class Discount extends UserDateAudit {
     private Integer maxOrderValue;
 
     @Column(name = "start_date", nullable = false)
-    private Date startDate;
+    private LocalDateTime startDate;
 
     @Column(name = "end_date", nullable = false)
-    private Date endDate;
+    private LocalDateTime endDate;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = false;
 
     @Column(name = "max_usage")
@@ -59,6 +63,6 @@ public class Discount extends UserDateAudit {
     private Integer maxUsage;
 
     @Column(name = "used_count")
-    @Positive
+    @PositiveOrZero
     private Integer usedCount;
 }

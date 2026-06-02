@@ -65,6 +65,15 @@ public class Booking extends UserDateAudit {
     @Column(name = "total_price", precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
+    @Column(name = "discount_code_snapshot", length = 20)
+    private String discountCodeSnapshot;
+
+    @Column(name = "discount_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "cancellation_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal cancellationFee = BigDecimal.ZERO;
+
     @Column(name = "currency", nullable = false, length = 3)
     private String currency = "VND";
 

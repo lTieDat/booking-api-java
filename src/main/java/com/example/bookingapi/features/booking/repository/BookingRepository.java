@@ -10,8 +10,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +27,29 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     );
 
     Optional<Booking> findByUser_IdAndClientRequestId(UUID id, String clientRequestId);
+
+    @Query("""
+            SELECT DISTINCT b
+            FROM Booking b
+            JOIN b.bookedRooms br
+            JOIN br.roomType rt
+            WHERE rt.hotel.id = :hotelId
+            """)
+    Page<Booking> findDistinctByHotelId(@Param("hotelId") UUID hotelId, Pageable pageable);
+
+    @Query("""
+            SELECT DISTINCT b
+            FROM Booking b
+            JOIN b.bookedRooms br
+            JOIN br.roomType rt
+            WHERE rt.hotel.id = :hotelId
+              AND b.status = :status
+            """)
+    Page<Booking> findDistinctByHotelIdAndStatus(
+            @Param("hotelId") UUID hotelId,
+            @Param("status") BookingStatus status,
+            Pageable pageable
+    );
 
     @Query(value = """
             SELECT COALESCE(SUM(br.quantity), 0)
@@ -40,5 +65,44 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
             @Param("date") LocalDate date,
             @Param("confirmedStatus") String confirmedStatus,
             @Param("checkedInStatus") String checkedInStatus
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT b.id)
+            FROM Booking b
+            JOIN b.bookedRooms br
+            JOIN br.roomType rt
+            WHERE rt.hotel.id = :hotelId
+            """)
+    long countDistinctByHotelId(@Param("hotelId") UUID hotelId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT b.id)
+            FROM Booking b
+            JOIN b.bookedRooms br
+            JOIN br.roomType rt
+            WHERE rt.hotel.id = :hotelId
+              AND b.status IN :statuses
+            """)
+    long countDistinctByHotelIdAndStatuses(
+            @Param("hotelId") UUID hotelId,
+            @Param("statuses") Collection<BookingStatus> statuses
+    );
+
+    @Query("""
+            SELECT SUM(b.totalPrice)
+            FROM Booking b
+            WHERE b.status IN :statuses
+              AND EXISTS (
+                  SELECT br.id
+                  FROM BookedRoom br
+                  JOIN br.roomType rt
+                  WHERE br.booking = b
+                    AND rt.hotel.id = :hotelId
+              )
+            """)
+    BigDecimal sumTotalPriceByHotelIdAndStatuses(
+            @Param("hotelId") UUID hotelId,
+            @Param("statuses") Collection<BookingStatus> statuses
     );
 }

@@ -61,6 +61,8 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/payments/payos/webhook").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/hotels/search").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/hotels/**").permitAll()
                 .anyRequest().authenticated()

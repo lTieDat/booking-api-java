@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +45,12 @@ public class Location extends DateAudit {
     @Size(max = 250)
     @Column(length = 250)
     private String detail;
+
+    @Column(precision = 9, scale = 6)
+    private BigDecimal latitude;
+
+    @Column(precision = 9, scale = 6)
+    private BigDecimal longitude;
 
     @OneToMany(mappedBy = "location")
     private List<Hotel> hotels = new ArrayList<>();

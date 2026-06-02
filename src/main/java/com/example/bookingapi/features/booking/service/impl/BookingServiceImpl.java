@@ -9,9 +9,15 @@ import com.example.bookingapi.features.booking.dto.request.BookingGuestRequest;
 import com.example.bookingapi.features.booking.model.BookedRoom;
 import com.example.bookingapi.features.booking.model.Booking;
 import com.example.bookingapi.features.booking.model.BookingStatusLog;
+import com.example.bookingapi.features.booking.model.CancellationPolicy;
+import com.example.bookingapi.features.booking.model.Discount;
 import com.example.bookingapi.features.booking.model.Guest;
 import com.example.bookingapi.features.booking.model.enums.InventoryHoldStatus;
+import com.example.bookingapi.features.booking.model.enums.CancellationPenaltyType;
+import com.example.bookingapi.features.booking.model.enums.DiscountType;
 import com.example.bookingapi.features.booking.repository.GuestRepository;
+import com.example.bookingapi.features.booking.repository.CancellationPolicyRepository;
+import com.example.bookingapi.features.booking.repository.DiscountRepository;
 import com.example.bookingapi.features.room.model.RoomType;
 import com.example.bookingapi.features.user.model.User;
 import com.example.bookingapi.features.booking.model.enums.BookingStatus;
@@ -35,6 +41,7 @@ import com.example.bookingapi.features.booking.service.BookingRequestHashService
 import com.example.bookingapi.features.booking.service.InventoryService;
 import com.example.bookingapi.features.booking.service.BookingStateMachine;
 import com.example.bookingapi.features.booking.service.BookingService;
+import com.example.bookingapi.features.receptionist.service.ReceptionistAccessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,9 +59,12 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.math.RoundingMode;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -69,11 +79,14 @@ public class BookingServiceImpl implements BookingService {
     @Autowired private BookingStatusLogRepository bookingStatusLogRepository;
     @Autowired private RoomTypeRepository roomTypeRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private DiscountRepository discountRepository;
+    @Autowired private CancellationPolicyRepository cancellationPolicyRepository;
     @Autowired private BookingStateMachine bookingStateMachine;
     @Autowired private GuestRepository guestRepository ;
     @Autowired private InventoryService inventoryService;
     @Autowired private BookingRequestHashService bookingRequestHashService;
     @Autowired private BookingIdempotencyCacheService bookingIdempotencyCacheService;
+    @Autowired private ReceptionistAccessService receptionistAccessService;
     @Autowired private TransactionTemplate transactionTemplate;
 
     @Value("${app.booking.pending-expiration-minutes:15}")
@@ -171,9 +184,13 @@ public class BookingServiceImpl implements BookingService {
         booking.setRequestHash(requestHash);
 
         BigDecimal totalPrice = BigDecimal.ZERO;
+        Set<UUID> hotelIds = new HashSet<>();
         for (BookedRoomRequest item : request.getRooms()) {
             RoomType roomType = roomTypeRepository.findById(item.getRoomTypeId())
                     .orElseThrow(() -> new ResourceNotFoundException("RoomType", "id", item.getRoomTypeId()));
+            if (roomType.getHotel() != null) {
+                hotelIds.add(roomType.getHotel().getId());
+            }
 
             if(roomType.getBasePrice() == null || roomType.getBasePrice().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new BadRequestException("Room type base price must be greater than zero");
@@ -188,7 +205,9 @@ public class BookingServiceImpl implements BookingService {
             totalPrice = totalPrice.add(lineTotal);
         }
 
-        booking.setTotalPrice(totalPrice);
+        applyCancellationPolicy(booking, request, hotelIds);
+        applyDiscount(booking, request, totalPrice);
+        booking.setTotalPrice(totalPrice.subtract(booking.getDiscountAmount()));
         Booking savedBooking = bookingRepository.saveAndFlush(booking);
         inventoryService.holdInventory(
                 savedBooking,
@@ -352,8 +371,11 @@ public class BookingServiceImpl implements BookingService {
                 booking.getCheckInDateTime(),
                 booking.getCheckOutDateTime(),
                 booking.getTotalPrice(),
+                booking.getDiscountAmount(),
+                booking.getCancellationFee(),
                 booking.getCurrency(),
-                booking.getStatus().name()
+                booking.getStatus().name(),
+                toGuestResponse(booking.getGuest())
         );
     }
 
@@ -415,10 +437,133 @@ public class BookingServiceImpl implements BookingService {
         }
         BookingStatus fromStatus = booking.getStatus();
         bookingStateMachine.transition(booking, BookingStatus.CANCELLED);
+        booking.setCancellationFee(calculateCancellationFee(booking));
         applyInventoryForStatusTransition(booking, fromStatus, booking.getStatus());
         Booking savedBooking = bookingRepository.save(booking);
-        recordStatusLog(savedBooking, fromStatus, savedBooking.getStatus(), currentUser, request.getReason().trim());
+        String note = request.getReason().trim();
+        if (savedBooking.getCancellationFee().compareTo(BigDecimal.ZERO) > 0) {
+            note = note + ". Cancellation fee: " + savedBooking.getCancellationFee().toPlainString() + " " + savedBooking.getCurrency();
+        }
+        recordStatusLog(savedBooking, fromStatus, savedBooking.getStatus(), currentUser, note);
         return new ApiMessageResponse(true, "Booking cancelled successfully");
+    }
+
+    private void applyDiscount(Booking booking, BookingRequest request, BigDecimal subtotal) {
+        booking.setDiscountAmount(BigDecimal.ZERO);
+        if (request.getDiscountCode() == null || request.getDiscountCode().isBlank()) {
+            return;
+        }
+
+        String code = request.getDiscountCode().trim().toUpperCase();
+        Discount discount = discountRepository.findByCodeIgnoreCase(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Discount", "code", code));
+        validateDiscount(discount, subtotal);
+
+        BigDecimal discountAmount = calculateDiscountAmount(discount, subtotal);
+        booking.setDiscount(discount);
+        booking.setDiscountCodeSnapshot(discount.getCode());
+        booking.setDiscountAmount(discountAmount);
+        discount.setUsedCount((discount.getUsedCount() == null ? 0 : discount.getUsedCount()) + 1);
+    }
+
+    private void validateDiscount(Discount discount, BigDecimal subtotal) {
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())) {
+            throw new BadRequestException("Discount is inactive");
+        }
+        if (discount.getStartDate().isAfter(now) || discount.getEndDate().isBefore(now)) {
+            throw new BadRequestException("Discount is outside its active date range");
+        }
+        if (discount.getMinOrderValue() != null
+                && subtotal.compareTo(BigDecimal.valueOf(discount.getMinOrderValue())) < 0) {
+            throw new BadRequestException("Booking total does not meet discount minimum order value");
+        }
+        if (discount.getMaxOrderValue() != null
+                && discount.getMaxOrderValue() > 0
+                && subtotal.compareTo(BigDecimal.valueOf(discount.getMaxOrderValue())) > 0) {
+            throw new BadRequestException("Booking total exceeds discount maximum order value");
+        }
+        if (discount.getMaxUsage() != null
+                && (discount.getUsedCount() == null ? 0 : discount.getUsedCount()) >= discount.getMaxUsage()) {
+            throw new BadRequestException("Discount usage limit has been reached");
+        }
+    }
+
+    private BigDecimal calculateDiscountAmount(Discount discount, BigDecimal subtotal) {
+        BigDecimal amount = discount.getDiscountType() == DiscountType.PERCENTAGE
+                ? subtotal.multiply(BigDecimal.valueOf(discount.getDiscountValue()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                : BigDecimal.valueOf(discount.getDiscountValue());
+        if (amount.compareTo(subtotal) > 0) {
+            return subtotal;
+        }
+        return amount;
+    }
+
+    private void applyCancellationPolicy(Booking booking, BookingRequest request, Set<UUID> hotelIds) {
+        CancellationPolicy policy = null;
+        if (request.getCancellationPolicyId() != null) {
+            policy = cancellationPolicyRepository.findById(request.getCancellationPolicyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("CancellationPolicy", "id", request.getCancellationPolicyId()));
+            validateCancellationPolicyScope(policy, hotelIds);
+        } else if (hotelIds.size() == 1) {
+            UUID hotelId = hotelIds.iterator().next();
+            policy = cancellationPolicyRepository.findByHotel_IdAndIsActiveTrue(hotelId).stream()
+                    .findFirst()
+                    .orElse(null);
+        }
+        if (policy == null) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(policy.getIsActive())) {
+            throw new BadRequestException("Cancellation policy is inactive");
+        }
+        booking.setCancellationPolicy(policy);
+    }
+
+    private void validateCancellationPolicyScope(CancellationPolicy policy, Set<UUID> hotelIds) {
+        if (policy.getHotel() == null) {
+            return;
+        }
+        if (!hotelIds.contains(policy.getHotel().getId())) {
+            throw new BadRequestException("Cancellation policy does not belong to the booking hotel");
+        }
+    }
+
+    private BigDecimal calculateCancellationFee(Booking booking) {
+        CancellationPolicy policy = booking.getCancellationPolicy();
+        if (policy == null || policy.getPenaltyType() == CancellationPenaltyType.NONE) {
+            return BigDecimal.ZERO;
+        }
+
+        LocalDateTime freeUntil = booking.getCheckInDateTime().minusHours(policy.getFreeCancellationHours());
+        if (LocalDateTime.now().isBefore(freeUntil)) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal fee = policy.getPenaltyType() == CancellationPenaltyType.PERCENTAGE
+                ? booking.getTotalPrice().multiply(BigDecimal.valueOf(policy.getPenaltyValue()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                : BigDecimal.valueOf(policy.getPenaltyValue());
+        if (fee.compareTo(booking.getTotalPrice()) > 0) {
+            return booking.getTotalPrice();
+        }
+        return fee;
+    }
+
+    private com.example.bookingapi.features.booking.dto.response.GuestResponse toGuestResponse(Guest guest) {
+        if (guest == null) {
+            return null;
+        }
+        return new com.example.bookingapi.features.booking.dto.response.GuestResponse(
+                guest.getId(),
+                guest.getFirstName(),
+                guest.getLastName(),
+                guest.getMiddleName(),
+                guest.getIdentifyCardNo(),
+                guest.getPhoneNumber(),
+                guest.getEmail()
+        );
     }
 
     private void recordStatusLog(
@@ -477,6 +622,7 @@ public class BookingServiceImpl implements BookingService {
     public ApiMessageResponse checkInBooking(UUID id, UserPrincipal currentUser) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        receptionistAccessService.requireCanManageBooking(booking, currentUser);
         BookingStatus fromStatus = booking.getStatus();
         bookingStateMachine.transition(booking, BookingStatus.CHECKED_IN);
         booking.setActualCheckInDate(LocalDateTime.now());
@@ -490,6 +636,7 @@ public class BookingServiceImpl implements BookingService {
     public ApiMessageResponse checkOutBooking(UUID id, UserPrincipal currentUser) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        receptionistAccessService.requireCanManageBooking(booking, currentUser);
         BookingStatus fromStatus = booking.getStatus();
         bookingStateMachine.transition(booking, BookingStatus.CHECKED_OUT);
         booking.setActualCheckOutDate(LocalDateTime.now());
@@ -503,6 +650,7 @@ public class BookingServiceImpl implements BookingService {
     public ApiMessageResponse markNoShow(UUID id, UserPrincipal currentUser) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", id));
+        receptionistAccessService.requireCanManageBooking(booking, currentUser);
         BookingStatus fromStatus = booking.getStatus();
         bookingStateMachine.transition(booking, BookingStatus.NO_SHOW);
         Booking savedBooking = bookingRepository.save(booking);

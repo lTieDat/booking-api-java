@@ -33,6 +33,8 @@ Tài liệu lý thuyết + ví dụ chi tiết: [`docs/jwt-security-guide.md`](d
 
 Tài liệu walkthrough REST API: [`docs/rest-api-walkthrough.md`](docs/rest-api-walkthrough.md)
 
+Tài liệu thiết kế search hotel theo tọa độ + availability + rating: [`docs/hotel-search-geo-availability.md`](docs/hotel-search-geo-availability.md)
+
 ### JWT Flow
 
 ```mermaid
@@ -101,7 +103,11 @@ com.example.bookingapi
     ├── user/                      # user profile/read models
     ├── hotel/                     # hotel, location, hotel images
     ├── room/                      # room type, room, amenity
-    └── booking/                   # booking, booked room, guest, discount, cancellation policy
+    ├── booking/                   # booking, booked room, guest, discount, cancellation policy
+    ├── payment/                   # payOS payment, webhook, reconciliation, manual refund
+    ├── invoice/                   # invoice, invoice line, tax config, booking tax
+    ├── receptionist/              # hotel assignment and front-desk scope guard
+    └── review/                    # hotel reviews from checked-out bookings
 ```
 
 Trong mỗi feature, layout mặc định là:
@@ -125,11 +131,14 @@ Schema được quản lý bằng **Flyway**. JPA chỉ `validate` — không t�
 
 ### Migrations
 
-| File | Nội dung |
-|---|---|
-| `V1__create_core_tables.sql` | `app_users`, `auth_refresh_tokens`, `info_messages` (legacy) |
-| `V2__seed_demo_data.sql` | seed demo user và messages |
-| `V3__add_core_tables.sql` | `roles`, `users`, `user_roles`, `hotels`, `rooms`, `bookings` + seed 2 roles |
+Migration hiện dùng timestamped Flyway files trong `src/main/resources/db/migration`, ví dụ:
+
+- `V20260526090000__create_core_tables.sql`
+- `V20260526090200__add_core_tables.sql`
+- `V20260529100000__add_inventory_and_holds.sql`
+- `V20260602100000__add_payos_payment_tables.sql`
+- `V20260602120000__add_invoice_and_tax.sql`
+- `V20260602140000__add_booking_policy_discount_and_reviews.sql`
 
 ### Tạo database local
 
@@ -137,15 +146,19 @@ Schema được quản lý bằng **Flyway**. JPA chỉ `validate` — không t�
 createdb booking_api
 ```
 
-### Schema chính (V3)
+### Schema chính
 
 ```
-users       — id, name, username, email, password, created_at, updated_at
-roles       — id, name (ROLE_USER / ROLE_ADMIN / ROLE_RECEPTIONIST)
-user_roles  — user_id, role_id
-hotels      — id, name, description, address, city, country, ...audit
-rooms       — id, hotel_id, room_number, room_type, capacity, price_per_night, ...audit
-bookings    — id, user_id, room_id, check_in_date, check_out_date, total_price, status, ...audit
+users / managers / roles
+hotels / locations / hotel_images
+room_types / rooms / amenities
+bookings / booked_rooms / guests / booking_status_logs
+room_inventories / inventory_holds
+discounts / cancellation_policies
+payments / payment_transactions / payment_webhook_events / refunds
+invoices / invoice_lines / tax_configs / booking_taxes
+receptionist_assignments
+reviews
 ```
 
 Tài liệu JPA & Database integration: [`docs/jpa-database-guide.md`](docs/jpa-database-guide.md)
@@ -293,25 +306,31 @@ curl -X POST http://localhost:8080/api/hotels \
   }'
 ```
 
-### Rooms
+### Room Types And Rooms
 
 | Method | Endpoint | Auth | Mô tả |
 |---|---|---|---|
-| GET | `/api/hotels/{hotelId}/rooms` | không cần | Danh sách phòng |
-| GET | `/api/hotels/{hotelId}/rooms/{id}` | không cần | Chi tiết phòng |
-| POST | `/api/hotels/{hotelId}/rooms` | ADMIN | Thêm phòng |
-| PUT | `/api/hotels/{hotelId}/rooms/{id}` | ADMIN | Cập nhật |
-| DELETE | `/api/hotels/{hotelId}/rooms/{id}` | ADMIN | Xoá |
+| GET | `/api/room-types` | không cần | Danh sách loại phòng |
+| GET | `/api/room-types/{id}` | không cần | Chi tiết loại phòng |
+| POST | `/api/room-types` | ADMIN | Thêm loại phòng |
+| PUT | `/api/room-types/{id}` | ADMIN | Cập nhật loại phòng |
+| DELETE | `/api/room-types/{id}` | ADMIN | Xoá loại phòng |
+| GET | `/api/rooms` | không cần | Danh sách phòng vật lý |
+| POST | `/api/rooms` | ADMIN | Thêm phòng vật lý |
 
 ```bash
-curl -X POST http://localhost:8080/api/hotels/1/rooms \
+curl -X POST http://localhost:8080/api/room-types \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "roomNumber": "101",
-    "roomType": "Deluxe",
-    "capacity": 2,
-    "pricePerNight": 150.00
+    "hotelId": "30000000-0000-0000-0000-000000000001",
+    "name": "Deluxe",
+    "code": "DLX",
+    "maxAdults": 2,
+    "maxChildren": 1,
+    "maxOccupancy": 3,
+    "bedType": "DOUBLE",
+    "basePrice": 1200000
   }'
 ```
 
@@ -329,6 +348,7 @@ curl -X POST http://localhost:8080/api/hotels/1/rooms \
 curl -X POST http://localhost:8080/api/bookings \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 01JZ7Q3M2AZR9V6DS6E8Q8XK7A" \
   -d '{
     "rooms": [
       {
@@ -336,8 +356,16 @@ curl -X POST http://localhost:8080/api/bookings \
         "quantity": 1
       }
     ],
-    "checkInDate": "2026-05-10",
-    "checkOutDate": "2026-05-13"
+    "checkInDate": "2026-06-10T14:00:00",
+    "checkOutDate": "2026-06-13T12:00:00",
+    "discountCode": "SUMMER10",
+    "guest": {
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "identifyCardNo": "ID123456",
+      "phoneNumber": "0901234567",
+      "email": "jane@example.com"
+    }
   }'
 ```
 
