@@ -10,8 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -39,13 +37,18 @@ public class Guest extends DateAudit {
     @Column(length = 40, nullable = true, name = "middle_name")
     private String middleName;
 
-    @NotBlank
     @Column(length = 20, name = "identify_card_no", nullable = false, unique = true)
     private String identifyCardNo;
 
     @NotBlank
     @Column(length = 20, name = "phone_number", nullable = false)
     private String phoneNumber;
+
+    @NotBlank
+    @Email
+    @Size(max = 100)
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Location location;

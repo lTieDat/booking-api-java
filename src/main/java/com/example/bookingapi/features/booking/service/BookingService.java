@@ -11,7 +11,7 @@ import com.example.bookingapi.common.security.UserPrincipal;
 import java.util.UUID;
 
 public interface BookingService {
-    BookingResponse createBooking(BookingRequest bookingRequest, UserPrincipal currentUser);
+    BookingCreationResult createBooking(BookingRequest bookingRequest, UserPrincipal currentUser, String clientRequestId);
     PagedResponse<BookingResponse> getUserBookings(UserPrincipal currentUser, int page, int size);
     BookingResponse getBooking(UUID id, UserPrincipal currentUser);
     ApiMessageResponse cancelBooking(UUID id, UserPrincipal currentUser, CancelBookingRequest request);

@@ -13,4 +13,6 @@ public interface RoomRepository extends JpaRepository<Room, UUID> {
     List<Room> findByRoomType_Hotel_Id(UUID hotelId);
 
     Optional<Room> findByIdAndRoomType_Hotel_Id(UUID id, UUID hotelId);
+
+    long countByRoomType_IdAndIsActiveTrue(UUID roomTypeId);
 }

@@ -4,6 +4,11 @@ import com.example.bookingapi.common.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DeadlockLoserDataAccessException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -38,6 +43,42 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleBadRequest(BadRequestException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler({
+            CannotAcquireLockException.class,
+            DeadlockLoserDataAccessException.class,
+            PessimisticLockingFailureException.class,
+            QueryTimeoutException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleConcurrencyConflict(RuntimeException ex, HttpServletRequest request) {
+        logger.warn("Concurrency conflict", ex);
+        return ResponseEntity.status(HttpStatus.LOCKED)
+                .header(HttpHeaders.RETRY_AFTER, "2")
+                .body(ApiErrorResponse.of(
+                        HttpStatus.LOCKED,
+                        "Inventory is being updated. Please retry shortly.",
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+        logger.warn("Database constraint violation", ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(
+                        HttpStatus.CONFLICT,
+                        "Request conflicts with existing data",
+                        request.getRequestURI()
+                ));
     }
 
     @ExceptionHandler(UnauthorizedException.class)

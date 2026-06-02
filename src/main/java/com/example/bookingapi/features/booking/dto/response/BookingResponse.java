@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,8 +16,8 @@ import java.util.UUID;
 public class BookingResponse {
     private UUID id;
     private List<BookedRoomResponse> bookedRooms;
-    private LocalDate checkInDate;
-    private LocalDate checkOutDate;
+    private LocalDateTime checkInDateTime;
+    private LocalDateTime checkOutDateTime;
     private BigDecimal totalPrice;
     private String currency;
     private String status;

@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -21,9 +21,13 @@ public class BookingRequest {
 
     @NotNull
     @FutureOrPresent
-    private LocalDate checkInDate;
+    private LocalDateTime checkInDate;
 
     @NotNull
     @Future
-    private LocalDate checkOutDate;
+    private LocalDateTime checkOutDate;
+
+    @NotNull
+    @Valid
+    private BookingGuestRequest guest;
 }

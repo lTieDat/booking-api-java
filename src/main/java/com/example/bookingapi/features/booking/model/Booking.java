@@ -11,7 +11,6 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -45,12 +44,12 @@ public class Booking extends UserDateAudit {
     @JoinColumn(name = "cancellation_policy_id")
     private CancellationPolicy cancellationPolicy;
 
-    @Column(name = "check_in_date", nullable = false)
-    private LocalDate checkInDate;
+    @Column(name = "check_in_date_time", nullable = false)
+    private LocalDateTime checkInDateTime;
 
-    @Column(name = "check_out_date", nullable = false)
+    @Column(name = "check_out_date_time", nullable = false)
     @FutureOrPresent
-    private LocalDate checkOutDate;
+    private LocalDateTime checkOutDateTime;
 
     @Column(name = "actual_check_out_date")
     @FutureOrPresent
@@ -79,6 +78,12 @@ public class Booking extends UserDateAudit {
 
     @Column(name = "note", length = 300)
     private String note;
+
+    @Column(name = "client_request_id", length = 120)
+    private String clientRequestId;
+
+    @Column(name = "request_hash", length = 128)
+    private String requestHash;
 
     public void addBookedRoom(BookedRoom bookedRoom) {
         bookedRooms.add(bookedRoom);

@@ -173,8 +173,48 @@ spring.config.import=optional:file:.env[.properties]
 | `DB_USERNAME` | `postgres` |
 | `DB_PASSWORD` | `postgres` |
 | `JWT_SECRET` | _(cần thay bằng secret thật)_ |
+| `REDIS_HOST` | `localhost` |
+| `REDIS_PORT` | `6379` |
 
 > `.env` đã được gitignore — không commit credentials. Chỉ commit `.env.sample`.
+
+## Local Dev Services
+
+### Redis
+
+Redis chạy bằng container riêng, dùng cho idempotency/cache local dev.
+
+Tài liệu chi tiết: [`docs/redis-local-dev.md`](docs/redis-local-dev.md)
+
+Start lần đầu:
+
+```bash
+docker compose -f docker-compose.redis.yml up -d
+```
+
+Kiểm tra:
+
+```bash
+docker exec booking-redis redis-cli ping
+```
+
+Kết quả mong đợi:
+
+```text
+PONG
+```
+
+Stop nhưng giữ data volume:
+
+```bash
+docker compose -f docker-compose.redis.yml down
+```
+
+Xoá luôn data volume local:
+
+```bash
+docker compose -f docker-compose.redis.yml down -v
+```
 
 ## Chạy Ứng Dụng
 
